@@ -39,13 +39,21 @@ echo "    • Homebrew  (software installer)"
 echo "    • Tailscale (secure team network)"
 echo "    • Discord   (team chat)"
 echo "    • Google tools (email, drive, sheets, docs)"
+echo "    • OpenClaw  (AI assistant — requires Anthropic API key)"
 echo ""
 
-# ── Ask for email up front ─────────────────────────────────
+# ── Ask for inputs up front ────────────────────────────────
 read -rp "  Enter your Google / work email address: " USER_EMAIL <"$TTY"
 echo ""
 
 [[ "$USER_EMAIL" == *@* ]] || die "That doesn't look like a valid email address. Please re-run and try again."
+
+echo "  Enter your Anthropic API key for OpenClaw."
+echo "  (Get one at console.anthropic.com — it starts with sk-ant-)"
+read -rsp "  Anthropic API key: " ANTHROPIC_API_KEY <"$TTY"
+echo ""
+
+[[ "$ANTHROPIC_API_KEY" == sk-ant-* ]] || die "That doesn't look like a valid Anthropic API key (should start with sk-ant-). Please re-run and try again."
 
 # ── macOS check ────────────────────────────────────────────
 [[ "$(uname)" == "Darwin" ]] || die "This script only supports macOS."
@@ -57,7 +65,7 @@ echo ""
 sudo -v <"$TTY"  # cache credentials now so we don't interrupt flow later
 
 # ── 1. Homebrew ────────────────────────────────────────────
-step "Step 1 of 4 — Homebrew (software installer)"
+step "Step 1 of 5 — Homebrew (software installer)"
 
 if ! command -v brew &>/dev/null; then
   echo "  Installing Homebrew (this may take a few minutes)…"
@@ -78,7 +86,7 @@ else
 fi
 
 # ── 2. Tailscale ───────────────────────────────────────────
-step "Step 2 of 4 — Tailscale (secure team network)"
+step "Step 2 of 5 — Tailscale (secure team network)"
 
 if ! brew list tailscale &>/dev/null 2>&1; then
   echo "  Installing Tailscale…"
@@ -98,7 +106,7 @@ sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --accept-routes 2>/dev/null \
   || warn "Tailscale already connected (or auth key expired — ask your admin for a new one)"
 
 # ── 3. Discord ─────────────────────────────────────────────
-step "Step 3 of 4 — Discord (team chat)"
+step "Step 3 of 5 — Discord (team chat)"
 
 if ! brew list --cask discord &>/dev/null 2>&1; then
   echo "  Installing Discord…"
@@ -109,7 +117,7 @@ else
 fi
 
 # ── 4. Google Cloud CLI (gcloud) ───────────────────────────
-step "Step 4 of 4 — Google tools (email, drive, sheets, docs)"
+step "Step 4 of 5 — Google tools (email, drive, sheets, docs)"
 
 if ! command -v gcloud &>/dev/null; then
   echo "  Installing Google Cloud CLI…"
@@ -164,6 +172,23 @@ gcloud auth application-default login \
 
 ok "Google signed in as $USER_EMAIL"
 
+# ── 5. OpenClaw — Anthropic API key ───────────────────────
+step "Step 5 of 5 — OpenClaw (AI assistant)"
+
+ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
+
+# Remove any existing ANTHROPIC_API_KEY line, then write fresh
+grep -v 'ANTHROPIC_API_KEY' "$ZSHRC" 2>/dev/null > "${ZSHRC}.tmp" && mv "${ZSHRC}.tmp" "$ZSHRC" || true
+echo "" >> "$ZSHRC"
+echo "# Anthropic API key (for OpenClaw)" >> "$ZSHRC"
+echo "export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"" >> "$ZSHRC"
+
+# Also export into the current session
+export ANTHROPIC_API_KEY
+
+ok "Anthropic API key saved to ~/.zshrc"
+ok "OpenClaw is ready to use"
+
 # ── Done ───────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${GREEN}╔══════════════════════════════════════╗${NC}"
@@ -174,6 +199,7 @@ echo "  Everything is ready:"
 echo -e "  ${GREEN}✓${NC}  Tailscale  — connected to team network"
 echo -e "  ${GREEN}✓${NC}  Discord    — installed (open it from Applications)"
 echo -e "  ${GREEN}✓${NC}  Google     — signed in as $USER_EMAIL"
+echo -e "  ${GREEN}✓${NC}  OpenClaw   — Anthropic API key configured"
 echo ""
 echo "  You're all set. Welcome to 1000Acres! 🌾"
 echo ""
