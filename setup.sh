@@ -39,6 +39,7 @@ echo "    • Homebrew     (software installer)"
 echo "    • Tailscale    (secure team network)"
 echo "    • Discord      (team chat)"
 echo "    • Amphetamine  (keep-awake utility)"
+echo "    • Caffeine     (menu bar keep-awake toggle)"
 echo "    • Google tools (email, drive, sheets, docs)"
 echo "    • OpenClaw     (AI assistant — requires Anthropic API key)"
 echo ""
@@ -81,7 +82,7 @@ echo ""
 sudo -v <"$TTY"  # cache credentials now so we don't interrupt flow later
 
 # ── 1. Homebrew ────────────────────────────────────────────
-step "Step 1 of 6 — Homebrew (software installer)"
+step "Step 1 of 7 — Homebrew (software installer)"
 
 if ! command -v brew &>/dev/null; then
   echo "  Installing Homebrew (this may take a few minutes)…"
@@ -105,27 +106,39 @@ elif [[ -x /usr/local/bin/brew ]]; then
 fi
 
 # ── 2. Tailscale ───────────────────────────────────────────
-step "Step 2 of 6 — Tailscale (secure team network)"
+step "Step 2 of 7 — Tailscale (secure team network)"
 
-if ! brew list tailscale &>/dev/null 2>&1; then
-  echo "  Installing Tailscale…"
-  brew install tailscale
+TAILSCALE_PKG_URL="https://pkgs.tailscale.com/stable/Tailscale-latest-macos.pkg"
+TAILSCALE_PKG="/tmp/Tailscale-latest-macos.pkg"
+
+if [[ ! -d "/Applications/Tailscale.app" ]] && ! command -v tailscale &>/dev/null; then
+  echo "  Downloading Tailscale…"
+  curl -fsSL "$TAILSCALE_PKG_URL" -o "$TAILSCALE_PKG"
+  echo "  Installing Tailscale (requires admin password)…"
+  sudo installer -pkg "$TAILSCALE_PKG" -target /
+  rm -f "$TAILSCALE_PKG"
+  ok "Tailscale installed"
+else
+  ok "Tailscale already installed — skipping"
 fi
 
-# Start the Tailscale daemon (brew service)
-if ! sudo brew services list 2>/dev/null | grep -q "tailscale.*started"; then
-  echo "  Starting Tailscale service…"
-  sudo brew services start tailscale
-  sleep 3   # give daemon a moment to come up
-fi
+# Add Tailscale CLI to PATH for this session and persist to ~/.zprofile
+for _ts_path in "/usr/local/bin" "/Applications/Tailscale.app/Contents/MacOS"; do
+  if [[ -x "$_ts_path/tailscale" ]]; then
+    export PATH="$_ts_path:$PATH"
+    grep -qxF "export PATH=\"$_ts_path:\$PATH\"" ~/.zprofile 2>/dev/null \
+      || echo "export PATH=\"$_ts_path:\$PATH\"" >> ~/.zprofile
+    break
+  fi
+done
 
 echo "  Joining team network…"
-sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --accept-routes 2>/dev/null \
+sudo tailscale up --auth-key="$TAILSCALE_AUTHKEY" --accept-routes 2>/dev/null \
   && ok "Connected to team network!" \
   || warn "Tailscale already connected (or auth key expired — ask your admin for a new one)"
 
 # ── 3. Discord ─────────────────────────────────────────────
-step "Step 3 of 6 — Discord (team chat)"
+step "Step 3 of 7 — Discord (team chat)"
 
 if ! brew list --cask discord &>/dev/null 2>&1; then
   echo "  Installing Discord…"
@@ -136,7 +149,7 @@ else
 fi
 
 # ── 4. Amphetamine ─────────────────────────────────────────
-step "Step 4 of 6 — Amphetamine (keep-awake utility)"
+step "Step 4 of 7 — Amphetamine (keep-awake utility)"
 
 if ! brew list --cask amphetamine &>/dev/null 2>&1; then
   echo "  Installing Amphetamine…"
@@ -152,8 +165,27 @@ if [[ -d "/Applications/Amphetamine.app" ]]; then
   ok "Amphetamine launched"
 fi
 
-# ── 5. Google Cloud CLI (gcloud) ───────────────────────────
-step "Step 5 of 6 — Google tools (email, drive, sheets, docs)"
+# ── 5. Caffeine ────────────────────────────────────────────
+step "Step 5 of 7 — Caffeine (menu bar keep-awake toggle)"
+
+if ! brew list --cask caffeine &>/dev/null 2>&1; then
+  echo "  Installing Caffeine…"
+  brew install --cask caffeine
+  ok "Caffeine installed"
+else
+  ok "Caffeine already installed — skipping"
+fi
+
+# Launch Caffeine so it appears in the menu bar right away
+if [[ -d "/Applications/Caffeine.app" ]]; then
+  open -a Caffeine
+  ok "Caffeine launched"
+fi
+
+warn "Caffeine adds an icon to your menu bar (top-right). Click it to toggle keep-awake on/off and set your preferred settings."
+
+# ── 6. Google Cloud CLI (gcloud) ───────────────────────────
+step "Step 6 of 7 — Google tools (email, drive, sheets, docs)"
 
 if ! command -v gcloud &>/dev/null; then
   echo "  Installing Google Cloud CLI…"
@@ -209,7 +241,7 @@ gcloud auth application-default login \
 ok "Google signed in as $USER_EMAIL"
 
 # ── 5. OpenClaw — install and configure ───────────────────
-step "Step 6 of 6 — OpenClaw (AI assistant)"
+step "Step 7 of 7 — OpenClaw (AI assistant)"
 
 ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
 
@@ -256,6 +288,7 @@ echo "  Everything is ready:"
 echo -e "  ${GREEN}✓${NC}  Tailscale    — connected to team network"
 echo -e "  ${GREEN}✓${NC}  Discord      — installed (open it from Applications)"
 echo -e "  ${GREEN}✓${NC}  Amphetamine  — installed and running"
+echo -e "  ${GREEN}✓${NC}  Caffeine     — installed (click the menu bar icon to configure)"
 echo -e "  ${GREEN}✓${NC}  Google       — signed in as $USER_EMAIL"
 echo -e "  ${GREEN}✓${NC}  OpenClaw     — installed and configured"
 echo ""
