@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  1000Acres Setup
-#  curl -fsSL https://1000acres.sh/setup | bash
+#  curl -fsSL https://raw.githubusercontent.com/scekker/1000acres-setup/main/setup.sh | bash
 # ============================================================
 set -euo pipefail
 
@@ -172,22 +172,43 @@ gcloud auth application-default login \
 
 ok "Google signed in as $USER_EMAIL"
 
-# ── 5. OpenClaw — Anthropic API key ───────────────────────
+# ── 5. OpenClaw — install and configure ───────────────────
 step "Step 5 of 5 — OpenClaw (AI assistant)"
 
 ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
 
-# Remove any existing ANTHROPIC_API_KEY line, then write fresh
+# Save Anthropic API key to shell config (idempotent)
 grep -v 'ANTHROPIC_API_KEY' "$ZSHRC" 2>/dev/null > "${ZSHRC}.tmp" && mv "${ZSHRC}.tmp" "$ZSHRC" || true
 echo "" >> "$ZSHRC"
 echo "# Anthropic API key (for OpenClaw)" >> "$ZSHRC"
 echo "export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"" >> "$ZSHRC"
-
-# Also export into the current session
 export ANTHROPIC_API_KEY
-
 ok "Anthropic API key saved to ~/.zshrc"
-ok "OpenClaw is ready to use"
+
+# Install OpenClaw (--no-onboard skips the interactive wizard; we handle it below)
+echo "  Installing OpenClaw…"
+curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard
+
+# Make sure the OpenClaw binary is on PATH in this session
+export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Run non-interactive onboarding
+if command -v openclaw &>/dev/null; then
+  echo "  Configuring OpenClaw…"
+  openclaw onboard \
+    --non-interactive \
+    --auth-choice apiKey \
+    --anthropic-api-key "$ANTHROPIC_API_KEY" \
+    --mode local \
+    --install-daemon \
+    --daemon-runtime node \
+    --gateway-bind loopback \
+    --gateway-auth token
+  ok "OpenClaw installed and configured"
+else
+  warn "OpenClaw binary not found — open a new terminal and run:"
+  warn "  openclaw onboard --non-interactive --auth-choice apiKey --anthropic-api-key YOUR_KEY --mode local --install-daemon --daemon-runtime node"
+fi
 
 # ── Done ───────────────────────────────────────────────────
 echo ""
@@ -199,7 +220,7 @@ echo "  Everything is ready:"
 echo -e "  ${GREEN}✓${NC}  Tailscale  — connected to team network"
 echo -e "  ${GREEN}✓${NC}  Discord    — installed (open it from Applications)"
 echo -e "  ${GREEN}✓${NC}  Google     — signed in as $USER_EMAIL"
-echo -e "  ${GREEN}✓${NC}  OpenClaw   — Anthropic API key configured"
+echo -e "  ${GREEN}✓${NC}  OpenClaw   — installed and configured"
 echo ""
 echo "  You're all set. Welcome to 1000Acres! 🌾"
 echo ""
