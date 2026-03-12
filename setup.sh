@@ -35,11 +35,12 @@ echo "  This script sets up your computer with everything"
 echo "  needed to work with the 1000Acres team."
 echo ""
 echo "  It will install:"
-echo "    • Homebrew  (software installer)"
-echo "    • Tailscale (secure team network)"
-echo "    • Discord   (team chat)"
+echo "    • Homebrew     (software installer)"
+echo "    • Tailscale    (secure team network)"
+echo "    • Discord      (team chat)"
+echo "    • Amphetamine  (keep-awake utility)"
 echo "    • Google tools (email, drive, sheets, docs)"
-echo "    • OpenClaw  (AI assistant — requires Anthropic API key)"
+echo "    • OpenClaw     (AI assistant — requires Anthropic API key)"
 echo ""
 
 # ── Mac identity — show serial & model, ask user to report ────
@@ -80,28 +81,31 @@ echo ""
 sudo -v <"$TTY"  # cache credentials now so we don't interrupt flow later
 
 # ── 1. Homebrew ────────────────────────────────────────────
-step "Step 1 of 5 — Homebrew (software installer)"
+step "Step 1 of 6 — Homebrew (software installer)"
 
 if ! command -v brew &>/dev/null; then
   echo "  Installing Homebrew (this may take a few minutes)…"
   NONINTERACTIVE=1 /bin/bash -c \
     "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-  # Add brew to PATH for Apple Silicon (/opt/homebrew) or Intel (/usr/local)
-  if [[ -x /opt/homebrew/bin/brew ]]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-    grep -qxF 'eval "$(/opt/homebrew/bin/brew shellenv)"' ~/.zprofile 2>/dev/null \
-      || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-  elif [[ -x /usr/local/bin/brew ]]; then
-    eval "$(/usr/local/bin/brew shellenv)"
-  fi
   ok "Homebrew installed"
 else
   ok "Homebrew already installed — skipping"
 fi
 
+# Add brew to PATH for this session and persist to ~/.zprofile (runs whether
+# brew was just installed or was already present)
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+  grep -qxF 'eval "$(/opt/homebrew/bin/brew shellenv)"' ~/.zprofile 2>/dev/null \
+    || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+  grep -qxF 'eval "$(/usr/local/bin/brew shellenv)"' ~/.zprofile 2>/dev/null \
+    || echo 'eval "$(/usr/local/bin/brew shellenv)"' >> ~/.zprofile
+fi
+
 # ── 2. Tailscale ───────────────────────────────────────────
-step "Step 2 of 5 — Tailscale (secure team network)"
+step "Step 2 of 6 — Tailscale (secure team network)"
 
 if ! brew list tailscale &>/dev/null 2>&1; then
   echo "  Installing Tailscale…"
@@ -121,7 +125,7 @@ sudo tailscale up --authkey="$TAILSCALE_AUTHKEY" --accept-routes 2>/dev/null \
   || warn "Tailscale already connected (or auth key expired — ask your admin for a new one)"
 
 # ── 3. Discord ─────────────────────────────────────────────
-step "Step 3 of 5 — Discord (team chat)"
+step "Step 3 of 6 — Discord (team chat)"
 
 if ! brew list --cask discord &>/dev/null 2>&1; then
   echo "  Installing Discord…"
@@ -131,8 +135,25 @@ else
   ok "Discord already installed — skipping"
 fi
 
-# ── 4. Google Cloud CLI (gcloud) ───────────────────────────
-step "Step 4 of 5 — Google tools (email, drive, sheets, docs)"
+# ── 4. Amphetamine ─────────────────────────────────────────
+step "Step 4 of 6 — Amphetamine (keep-awake utility)"
+
+if ! brew list --cask amphetamine &>/dev/null 2>&1; then
+  echo "  Installing Amphetamine…"
+  brew install --cask amphetamine
+  ok "Amphetamine installed"
+else
+  ok "Amphetamine already installed — skipping"
+fi
+
+# Launch Amphetamine so it's running immediately
+if [[ -d "/Applications/Amphetamine.app" ]]; then
+  open -a Amphetamine
+  ok "Amphetamine launched"
+fi
+
+# ── 5. Google Cloud CLI (gcloud) ───────────────────────────
+step "Step 5 of 6 — Google tools (email, drive, sheets, docs)"
 
 if ! command -v gcloud &>/dev/null; then
   echo "  Installing Google Cloud CLI…"
@@ -188,7 +209,7 @@ gcloud auth application-default login \
 ok "Google signed in as $USER_EMAIL"
 
 # ── 5. OpenClaw — install and configure ───────────────────
-step "Step 5 of 5 — OpenClaw (AI assistant)"
+step "Step 6 of 6 — OpenClaw (AI assistant)"
 
 ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
 
@@ -232,10 +253,11 @@ echo -e "${BOLD}${GREEN}║   🎉  Setup complete!  Welcome! 🌾   ║${NC}"
 echo -e "${BOLD}${GREEN}╚══════════════════════════════════════╝${NC}"
 echo ""
 echo "  Everything is ready:"
-echo -e "  ${GREEN}✓${NC}  Tailscale  — connected to team network"
-echo -e "  ${GREEN}✓${NC}  Discord    — installed (open it from Applications)"
-echo -e "  ${GREEN}✓${NC}  Google     — signed in as $USER_EMAIL"
-echo -e "  ${GREEN}✓${NC}  OpenClaw   — installed and configured"
+echo -e "  ${GREEN}✓${NC}  Tailscale    — connected to team network"
+echo -e "  ${GREEN}✓${NC}  Discord      — installed (open it from Applications)"
+echo -e "  ${GREEN}✓${NC}  Amphetamine  — installed and running"
+echo -e "  ${GREEN}✓${NC}  Google       — signed in as $USER_EMAIL"
+echo -e "  ${GREEN}✓${NC}  OpenClaw     — installed and configured"
 echo ""
 echo "  You're all set. Welcome to 1000Acres! 🌾"
 echo ""
