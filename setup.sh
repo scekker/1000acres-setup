@@ -42,6 +42,21 @@ echo "    • Google tools (email, drive, sheets, docs)"
 echo "    • OpenClaw  (AI assistant — requires Anthropic API key)"
 echo ""
 
+# ── Mac identity — show serial & model, ask user to report ────
+MAC_SERIAL="$(ioreg -l | awk -F'"' '/IOPlatformSerialNumber/ {print $4}')"
+MAC_MODEL="$(sysctl -n hw.model)"
+
+echo -e "${BOLD}  📋  Your Mac information (please send to your fleet admin):${NC}"
+echo ""
+echo -e "      Serial number : ${BOLD}${MAC_SERIAL}${NC}"
+echo -e "      Model         : ${BOLD}${MAC_MODEL}${NC}"
+echo ""
+echo "  ➜  Copy the lines above and send them to your fleet admin"
+echo "     before continuing. They need this to register your device."
+echo ""
+read -rp "  Press Enter once you've noted your serial number and model…" <"$TTY"
+echo ""
+
 # ── Ask for inputs up front ────────────────────────────────
 read -rp "  Enter your Google / work email address: " USER_EMAIL <"$TTY"
 echo ""
